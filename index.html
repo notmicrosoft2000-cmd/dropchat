@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="DropChat — a chat room and file drop that lives on your Wi-Fi. LAN chat + drag-and-drop file sharing, self-hosted in one Python file. A Neptune Productions project.">
+  <meta name="description" content="DropChat — a chat room and file drop that lives on your Wi-Fi. LAN chat + drag-and-drop file sharing, self-hosted in one Python file. Download and run it yourself. A Neptune Productions project.">
   <meta name="theme-color" content="#0f1117">
   <title>DropChat — chat + file drop, on your Wi-Fi</title>
-  <link rel="icon" type="image/png" href="windowq.png">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -18,24 +18,34 @@
     <div class="brand">DropChat <span class="badge">LAN</span></div>
     <div class="bar-right">
       <span class="nep">NEPTUNE PRODUCTIONS [C]</span>
+      <nav class="menubar" aria-label="Site navigation">
+        <a href="#how">WHAT IT DOES</a>
+        <a href="#server">THE SERVER SAYS</a>
+        <a href="#flags">FLAGS</a>
+        <a href="#run">RUN IT</a>
+        <a href="#download">DOWNLOAD</a>
+      </nav>
     </div>
   </header>
 
   <main>
     <section class="hero">
       <div class="chat-mock" aria-hidden="true">
+        <div class="mock-head"><span class="mock-dot"></span> the living room · 3 online</div>
         <div class="mock-row me"><div class="bubble">files, anyone?</div></div>
         <div class="mock-row them"><div class="bubble">drop 'em here 👇</div></div>
-        <div class="mock-file"><span>📦</span> dropchat.zip <span class="file-size">2.3 MB</span></div>
+        <div class="mock-row them"><div class="bubble">already grabbed the zip, nice</div></div>
+        <div class="mock-file"><span>📦</span> dropchat.zip <span class="file-size">2.3 MB</span><span class="file-dl">↓ 2×</span></div>
+        <div class="mock-row me"><div class="bubble">remind me to keep the server running this time</div></div>
       </div>
       <h1 class="title">DropChat</h1>
       <p class="tagline">A chat room and a file drop that lives on your Wi-Fi. No account. No internet. Just your network.</p>
       <p class="intro">Run one Python file on one machine. Everyone else on the same Wi-Fi opens the address it prints — and they're in.</p>
       <div class="hero-actions">
-        <a class="btn btn-primary" href="#run">[ RUN IT ]</a>
+        <a class="btn btn-primary" href="#download">[ DOWNLOAD ]</a>
         <a class="btn btn-ghost" href="#how">[ HOW IT WORKS ]</a>
       </div>
-      <p class="foot-note">THE SERVER PRINTS ITS OWN URL · PASSWORD-GATED MODE · FILE CAP 100 MB BY DEFAULT</p>
+      <p class="foot-note">THE SERVER PRINTS ITS OWN URL · PASSWORD-GATED MODE · FILE CAP 100 MB BY DEFAULT · ZERO INSTALL</p>
     </section>
 
     <section class="section" id="how">
@@ -43,7 +53,7 @@
       <div class="grid">
         <article class="card">
           <h3>REAL-TIME CHAT</h3>
-          <p>Names, message history, live updates. Every client on the room sees messages the moment they're sent.</p>
+          <p>Names, message history, live updates. Every client in the room sees messages the moment they're sent.</p>
         </article>
         <article class="card">
           <h3>DRAG &amp; DROP FILES</h3>
@@ -68,26 +78,50 @@
       </div>
     </section>
 
+    <section class="section" id="server">
+      <h2 class="section-title">▸ THE SERVER SAYS</h2>
+      <p class="section-sub">Run it once and it tells the room where it lives.</p>
+      <pre class="terminal-out">$ python server.py --name "The Living Room"
+DropChat is running!
+  On this PC:     http://localhost:8000
+  On your Wi-Fi:  http://192.168.1.5:8000
+  Press Ctrl+C to stop.</pre>
+      <pre class="terminal-out">$ python server.py --name "The Living Room" --pass s0me-key
+DropChat is running!
+  On this PC:     http://localhost:8000
+  On your Wi-Fi:  http://192.168.1.5:8000
+  Password:       s0me-key
+  Add ?key=s0me-key to every address above
+  Press Ctrl+C to stop.</pre>
+      <p class="note">Everyone on the Wi-Fi opens the same address in a browser. No app to install on their side either.</p>
+    </section>
+
+    <section class="section" id="flags">
+      <h2 class="section-title">▸ FLAGS</h2>
+      <p class="section-sub">It listens politely, but it also takes orders.</p>
+      <table class="flags">
+        <tr><td><code>--port</code></td><td>8000</td><td class="dim">HTTP port to serve on</td></tr>
+        <tr><td><code>--name</code></td><td>DropChat</td><td class="dim">server name shown to other DropChats</td></tr>
+        <tr><td><code>--pass</code></td><td>none</td><td class="dim">require <code>?key=…</code> on every request</td></tr>
+        <tr><td><code>--max-mb</code></td><td>100</td><td class="dim">upload size cap per file</td></tr>
+      </table>
+    </section>
+
     <section class="section" id="run">
       <h2 class="section-title">▸ RUN IT</h2>
       <p class="section-sub">Needs Python 3 and nothing else — it uses only the standard library.</p>
-      <pre class="code-block">python server.py
-
-# pick a name + a port:
-python server.py --name "The Living Room" --port 8000
-
-# password-gated:
-python server.py --pass "s0me-key"
-# then everyone joins with  ?key=s0me-key</pre>
-      <p class="note">It prints the local address for this machine and the Wi-Fi address for everyone else. Open either in a browser.</p>
+      <pre class="code-block">python server.py</pre>
+      <p class="note">Windows just double-clicking <code>start.bat</code> works too — it launches the server named after your PC.</p>
     </section>
 
-    <section class="section" id="source">
-      <h2 class="section-title">▸ THE SOURCE</h2>
-      <p class="section-sub">Open, public, and honest about what it does — a local tool for local networks.</p>
-      <div class="actions">
-        <a class="btn btn-primary" href="https://github.com/notmicrosoft2000-cmd/dropchat" target="_blank" rel="noopener">[ THE REPOSITORY ]</a>
+    <section class="section" id="download">
+      <h2 class="section-title">▸ DOWNLOAD</h2>
+      <p class="section-sub">You have to run it — that's the point. Grab the source and boot it on the machine that stays on.</p>
+      <div class="dl-row">
+        <a class="btn btn-primary btn-big" href="https://github.com/notmicrosoft2000-cmd/dropchat/archive/refs/heads/main.zip" target="_blank" rel="noopener">[ DOWNLOAD THE SOURCE (ZIP) ]</a>
+        <a class="btn btn-ghost btn-big" href="https://github.com/notmicrosoft2000-cmd/dropchat" target="_blank" rel="noopener">[ THE REPOSITORY ]</a>
       </div>
+      <p class="note dim">The zip is the whole repo — server, static UI, README. Unzip, <code>python server.py</code>, share the address.</p>
     </section>
   </main>
 
@@ -96,5 +130,7 @@ python server.py --pass "s0me-key"
     <p class="dim">Runs on your Wi-Fi. Never leaves it.</p>
   </footer>
 
+  <script>window.SFX_CONFIG = { hover: { f: 1700, d: 0.02, t: "sine", v: 0.012 }, click: { f: 880, d: 0.08, t: "square", v: 0.035 } };</script>
+  <script src="js/sfx.js"></script>
 </body>
 </html>
