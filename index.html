@@ -36,7 +36,7 @@
           <div class="mock-row me"><div class="bubble">files, anyone?</div></div>
           <div class="mock-row them"><div class="bubble">drop 'em here 👇</div></div>
           <div class="mock-row them"><div class="bubble">already grabbed the zip, nice</div></div>
-          <div class="mock-file"><span>📦</span> dropchat.zip <span class="file-size">2.3 MB</span><span class="file-dl">↓ 2×</span></div>
+          <div class="mock-file"><span>📦</span> dropchat.zip <span class="file-meta">from Marty · 14:02</span><span class="file-size">2.3 MB</span><span class="file-dl">↓ 2×</span></div>
           <div class="mock-row me"><div class="bubble">remind me to keep the server running this time</div></div>
         </div>
         <div class="mock-typing" id="mockTyping"><i></i><i></i><i></i><em>someone is typing...</em></div>
@@ -67,11 +67,19 @@
       <div class="grid">
         <article class="card reveal">
           <h3>REAL-TIME CHAT</h3>
-          <p>Names, message history, live updates. Every client in the room sees messages the moment they're sent.</p>
+          <p>Names, message history, live updates. Every client in the room sees messages the moment they're sent — and who's typing to send them.</p>
+        </article>
+        <article class="card reveal">
+          <h3>WHO'S HERE, RIGHT NOW</h3>
+          <p>The side panel lists everyone online and updates the instant someone joins or leaves. No one sneaks into the room silently.</p>
         </article>
         <article class="card reveal">
           <h3>DRAG &amp; DROP FILES</h3>
           <p>Drop a file into the page and it lands in the shared upload folder for everyone to grab. No services in between.</p>
+        </article>
+        <article class="card reveal">
+          <h3>FILES WITH A SHELF LIFE</h3>
+          <p>Every file shows who dropped it and when. Anyone can hit × to delete it, or you can set <code>--file-expiry</code> and the server sweeps old ones itself.</p>
         </article>
         <article class="card reveal">
           <h3>FINDS OTHER DROPS</h3>
@@ -100,12 +108,13 @@ DropChat is running!
   On this PC:     http://localhost:8000
   On your Wi-Fi:  http://192.168.1.5:8000
   Press Ctrl+C to stop.</pre>
-      <pre class="terminal-out">$ python server.py --name "The Living Room" --pass s0me-key
+      <pre class="terminal-out">$ python server.py --name "The Living Room" --pass s0me-key --file-expiry 24
 DropChat is running!
   On this PC:     http://localhost:8000
   On your Wi-Fi:  http://192.168.1.5:8000
   Password:       s0me-key
   Add ?key=s0me-key to every address above
+  Files expire:   after 24.0 hour(s)
   Press Ctrl+C to stop.</pre>
       <p class="note">Everyone on the Wi-Fi opens the same address in a browser. No app to install on their side either.</p>
     </section>
@@ -118,6 +127,7 @@ DropChat is running!
         <tr><td><code>--name</code></td><td>DropChat</td><td class="dim">server name shown to other DropChats</td></tr>
         <tr><td><code>--pass</code></td><td>none</td><td class="dim">require <code>?key=…</code> on every request</td></tr>
         <tr><td><code>--max-mb</code></td><td>100</td><td class="dim">upload size cap per file</td></tr>
+        <tr><td><code>--file-expiry</code></td><td>never</td><td class="dim">delete uploaded files after this many hours</td></tr>
       </table>
     </section>
 

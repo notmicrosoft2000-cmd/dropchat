@@ -31,6 +31,9 @@ SERVER_PORT = 8000
 SERVER_NAME = "DropChat"
 CHAT_HISTORY = []
 CHAT_HISTORY_MAX = 200
+TYPING = {}
+TYPING_LOCK = threading.Lock()
+FILE_TTL = None  # seconds; None means uploaded files never expire
 
 
 def lan_ip():
@@ -61,13 +64,16 @@ class Broadcaster:
         c = {"queue": queue.Queue(maxsize=500), "name": name}
         with self.lock:
             self.clients.append(c)
+        self.broadcast("joined", {"name": name})
         self.broadcast("users", self.user_list())
         return c
 
     def unsubscribe(self, c):
+        name = c["name"]
         with self.lock:
             if c in self.clients:
                 self.clients.remove(c)
+        self.broadcast("left", {"name": name})
         self.broadcast("users", self.user_list())
 
     def user_list(self):
@@ -184,28 +190,78 @@ def scan_files():
             if os.path.isfile(path):
                 file_id = f
                 display = file_id.split("_", 1)[1] if "_" in file_id else file_id
+                mtime = os.path.getmtime(path)
                 FILES[file_id] = {
                     "id": file_id,
                     "name": display,
                     "size": os.path.getsize(path),
                     "path": path,
+                    "time": time.strftime("%H:%M", time.localtime(mtime)),
+                    "uploaded_by": None,
+                    "expires": (mtime + FILE_TTL) if FILE_TTL else None,
                 }
 
 
-def save_upload(orig_name, data):
+def save_upload(orig_name, data, uploaded_by=None):
     safe = safe_name(orig_name)
     file_id = "{}_{}".format(uuid.uuid4().hex[:8], safe)
     path = os.path.join(UPLOAD_DIR, file_id)
     with open(path, "wb") as fh:
         fh.write(data)
+    now = time.time()
     with FILES_LOCK:
         FILES[file_id] = {
             "id": file_id,
             "name": safe,
             "size": len(data),
             "path": path,
+            "time": time.strftime("%H:%M", time.localtime(now)),
+            "uploaded_by": (uploaded_by or "someone")[:40],
+            "expires": (now + FILE_TTL) if FILE_TTL else None,
         }
     return FILES[file_id]
+
+
+def typing_list():
+    now = time.time()
+    with TYPING_LOCK:
+        return [n for n, exp in list(TYPING.items()) if exp >= now]
+
+
+def delete_file(file_id):
+    with FILES_LOCK:
+        info = FILES.pop(file_id, None)
+    if not info:
+        return None
+    try:
+        os.remove(info["path"])
+    except OSError:
+        pass
+    BROADCASTER.broadcast("file-deleted", {"id": file_id, "name": info["name"]})
+    return info
+
+
+def bg_loop():
+    """Prune stale typing indicators and expired files."""
+    while True:
+        time.sleep(2)
+        now = time.time()
+        stale = []
+        with TYPING_LOCK:
+            stale = [n for n, exp in list(TYPING.items()) if exp < now]
+            for n in stale:
+                del TYPING[n]
+        if stale:
+            BROADCASTER.broadcast("typing", typing_list())
+        if FILE_TTL:
+            with FILES_LOCK:
+                expired = [
+                    fid
+                    for fid, f in FILES.items()
+                    if f.get("expires") and f["expires"] < now
+                ]
+            for fid in expired:
+                delete_file(fid)
 
 
 def parse_multipart(content_type, body):
@@ -305,7 +361,14 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/files":
             with FILES_LOCK:
                 listing = [
-                    {"id": f["id"], "name": f["name"], "size": f["size"]}
+                    {
+                        "id": f["id"],
+                        "name": f["name"],
+                        "size": f["size"],
+                        "time": f.get("time"),
+                        "uploaded_by": f.get("uploaded_by"),
+                        "expires": f.get("expires"),
+                    }
                     for f in FILES.values()
                 ]
             self._send(200, json.dumps(listing))
@@ -362,6 +425,24 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, json.dumps({"ok": True}))
             return
 
+        if path == "/typing":
+            length = int(self.headers.get("Content-Length", 0))
+            try:
+                data = json.loads(self.rfile.read(length).decode("utf-8"))
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                self._send(400, json.dumps({"error": "bad payload"}))
+                return
+            name = (data.get("name") or "Guest")[:40]
+            now = time.time()
+            with TYPING_LOCK:
+                if data.get("typing"):
+                    TYPING[name] = now + 3.5
+                else:
+                    TYPING.pop(name, None)
+            BROADCASTER.broadcast("typing", typing_list())
+            self._send(200, json.dumps({"ok": True}))
+            return
+
         if path == "/upload":
             length = int(self.headers.get("Content-Length", 0))
             if length > MAX_BYTES:
@@ -372,13 +453,31 @@ class Handler(BaseHTTPRequestHandler):
             if "file" not in parts:
                 self._send(400, json.dumps({"error": "no file"}))
                 return
-            saved = save_upload(parts["file"]["filename"], parts["file"]["data"])
+            uploader = parse_qs(urlparse(self.path).query).get("name", [None])[0]
+            saved = save_upload(
+                parts["file"]["filename"], parts["file"]["data"], uploader
+            )
             BROADCASTER.broadcast(
                 "file", {"name": saved["name"], "size": saved["size"]}
             )
             self._send(200, json.dumps({"ok": True, "id": saved["id"]}))
             return
 
+        self._send(404, json.dumps({"error": "not found"}))
+
+    def do_DELETE(self):
+        if not self.authed():
+            self._reject()
+            return
+        path = urlparse(self.path).path
+        if path.startswith("/api/files/"):
+            file_id = unquote(path[len("/api/files/") :])
+            info = delete_file(file_id)
+            if info:
+                self._send(200, json.dumps({"ok": True, "name": info["name"]}))
+            else:
+                self._send(404, json.dumps({"error": "no such file"}))
+            return
         self._send(404, json.dumps({"error": "not found"}))
 
     def serve_static(self, rel):
@@ -450,12 +549,19 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    global AUTH_KEY, BROADCASTER, DISCOVERY, UPLOAD_DIR, MAX_BYTES, SERVER_PORT, SERVER_NAME
+    global AUTH_KEY, BROADCASTER, DISCOVERY, UPLOAD_DIR, MAX_BYTES
+    global SERVER_PORT, SERVER_NAME, FILE_TTL
     ap = argparse.ArgumentParser(description="DropChat - LAN chat + file sharing")
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--name", default="DropChat")
     ap.add_argument("--pass", dest="password", default=None)
     ap.add_argument("--max-mb", type=int, default=100)
+    ap.add_argument(
+        "--file-expiry",
+        type=float,
+        default=None,
+        help="delete uploaded files after this many hours (default: never)",
+    )
     args = ap.parse_args()
 
     AUTH_KEY = args.password
@@ -464,7 +570,10 @@ def main():
     SERVER_NAME = args.name
     UPLOAD_DIR = os.path.join(HERE, "uploads")
     os.makedirs(UPLOAD_DIR, exist_ok=True)
+    if args.file_expiry:
+        FILE_TTL = max(1.0, args.file_expiry) * 3600
     scan_files()
+    threading.Thread(target=bg_loop, daemon=True).start()
 
     BROADCASTER = Broadcaster()
     DISCOVERY = Discovery(5055, args.name, args.port)
@@ -478,6 +587,8 @@ def main():
     if AUTH_KEY:
         print("  Password:       {}".format(AUTH_KEY))
         print("  Add ?key={} to every address above".format(AUTH_KEY))
+    if FILE_TTL:
+        print("  Files expire:   after {:.1f} hour(s)".format(FILE_TTL / 3600))
     print("  Press Ctrl+C to stop.")
     try:
         httpd.serve_forever()

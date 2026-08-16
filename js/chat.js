@@ -62,9 +62,10 @@
     var f = el("div", "mock-file");
     var ic = el("span", null, "📦");
     var nm = el("span", null, name);
+    var meta = el("span", "file-meta", "from " + BOTS[Math.floor(Math.random() * BOTS.length)].split(" ")[0]);
     var sz = el("span", "file-size", fmtSize(bytes));
     var dl = el("span", "file-dl", "↓ " + (1 + Math.floor(Math.random() * 4)) + "×");
-    f.appendChild(ic); f.appendChild(nm); f.appendChild(sz); f.appendChild(dl);
+    f.appendChild(ic); f.appendChild(nm); f.appendChild(meta); f.appendChild(sz); f.appendChild(dl);
     scroll.appendChild(f);
     f.style.animation = "bubpop .4s cubic-bezier(.2,.9,.3,1.2) both";
     scroll.scrollTop = scroll.scrollHeight;
