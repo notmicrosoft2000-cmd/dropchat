@@ -1,0 +1,174 @@
+const params = new URLSearchParams(location.search);
+const key = params.get("key") || "";
+const keyArg = key ? "?key=" + encodeURIComponent(key) : "";
+
+const $ = (id) => document.getElementById(id);
+
+function pickName() {
+  let n = localStorage.getItem("dropchat_name");
+  if (!n) {
+    n = "Friend-" + Math.floor(1000 + Math.random() * 9000);
+    localStorage.setItem("dropchat_name", n);
+  }
+  return n;
+}
+
+const myName = pickName();
+$("name").value = myName;
+
+fetch("/api/info" + keyArg)
+  .then((r) => r.json())
+  .then((info) => {
+    $("share-url").textContent = "http://" + info.lan + "/";
+  })
+  .catch(() => {
+    $("share-url").textContent = location.origin;
+  });
+
+const esParams = new URLSearchParams({ name: myName });
+if (key) esParams.set("key", key);
+const ws = new EventSource("/events?" + esParams.toString());
+
+ws.addEventListener("history", (e) => {
+  const list = JSON.parse(e.data);
+  list.forEach((m) => addMessage(m, true));
+  scrollDown();
+});
+
+ws.addEventListener("message", (e) => {
+  addMessage(JSON.parse(e.data), false);
+  scrollDown();
+});
+
+ws.addEventListener("users", (e) => {
+  const users = JSON.parse(e.data);
+  $("users").innerHTML = users
+    .map((u) => `<div><span class="dot">&#9679;</span>${escapeHtml(u)}</div>`)
+    .join("") || '<div class="empty">Just you.</div>';
+});
+
+ws.addEventListener("file", (e) => {
+  const f = JSON.parse(e.data);
+  $("files").insertAdjacentHTML(
+    "beforeend",
+    `<div class="file-notice" style="max-width:none;align-self:auto">New file: <b>${escapeHtml(f.name)}</b> (${fmtSize(f.size)})</div>`
+  );
+  loadFiles();
+});
+
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function fmtSize(n) {
+  if (n < 1024) return n + " B";
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+  return (n / 1024 / 1024).toFixed(1) + " MB";
+}
+
+function addMessage(m, mine) {
+  const div = document.createElement("div");
+  div.className = "msg" + (mine ? " mine" : "");
+  div.innerHTML =
+    `<div class="when">${escapeHtml(m.time)}</div>` +
+    `<div class="who">${escapeHtml(m.name)}</div>` +
+    `<div class="text">${escapeHtml(m.message)}</div>`;
+  $("messages").appendChild(div);
+}
+
+function scrollDown() {
+  $("messages").scrollTop = $("messages").scrollHeight;
+}
+
+function send() {
+  const name = $("name").value.trim() || "Guest";
+  const message = $("msg").value.trim();
+  if (!message) return;
+  localStorage.setItem("dropchat_name", name);
+  fetch("/send" + keyArg, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, message }),
+  });
+  $("msg").value = "";
+  $("msg").focus();
+}
+
+$("send").addEventListener("click", send);
+$("msg").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") send();
+});
+
+const dropzone = $("dropzone");
+const fileInput = $("file-input");
+
+function upload(file) {
+  const form = new FormData();
+  form.append("file", file);
+  fetch("/upload" + keyArg, { method: "POST", body: form })
+    .then((r) => (r.ok ? loadFiles() : r.json().then((j) => alert("Upload failed: " + j.error))))
+    .catch(() => alert("Upload failed"));
+}
+
+dropzone.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", () => {
+  [...fileInput.files].forEach(upload);
+  fileInput.value = "";
+});
+
+dropzone.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  dropzone.classList.add("over");
+});
+dropzone.addEventListener("dragleave", () => dropzone.classList.remove("over"));
+dropzone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dropzone.classList.remove("over");
+  [...e.dataTransfer.files].forEach(upload);
+});
+
+function loadFiles() {
+  fetch("/api/files" + keyArg)
+    .then((r) => r.json())
+    .then((files) => {
+      $("files").innerHTML =
+        files
+          .map(
+            (f) =>
+              `<div>&#128196; <a href="/download/${encodeURIComponent(f.id)}">${escapeHtml(f.name)}</a> <span style="color:#5f6b82">(${fmtSize(f.size)})</span></div>`
+          )
+          .join("") || '<div class="empty">No files yet. Drop something above.</div>';
+    });
+}
+
+$("find").addEventListener("click", () => {
+  $("found").innerHTML = '<div class="empty">Looking...</div>';
+  fetch("/api/discover" + keyArg)
+    .then((r) => r.json())
+    .then((servers) => {
+      $("found").innerHTML =
+        servers
+          .map(
+            (s) =>
+              `<div>&#128225; <b>${escapeHtml(s.name)}</b> &rarr; <a href="http://${s.ip}:${s.port}">http://${s.ip}:${s.port}</a></div>`
+          )
+          .join("") || '<div class="empty">No other DropChat found right now.</div>';
+    });
+});
+
+$("scan").addEventListener("click", () => {
+  $("wifi").innerHTML = '<div class="empty">Scanning...</div>';
+  fetch("/api/wifi" + keyArg)
+    .then((r) => r.json())
+    .then((devices) => {
+      $("wifi").innerHTML =
+        devices
+          .map(
+            (d) =>
+              `<div><span>${escapeHtml(d.ip)}</span><span style="color:#5f6b82">${escapeHtml(d.type)}</span></div>`
+          )
+          .join("") || '<div class="empty">Nothing found.</div>';
+    });
+});
+
+loadFiles();

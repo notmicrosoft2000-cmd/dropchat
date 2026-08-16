@@ -1,0 +1,6 @@
+# runtime file storage
+uploads/
+
+# python
+__pycache__/
+*.pyc

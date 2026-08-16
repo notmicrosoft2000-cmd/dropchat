@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DropChat</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="topbar">
+  <div class="brand">DropChat <span class="badge">LAN</span></div>
+  <div class="urlbox">Open this on any device on your Wi-Fi: <code id="share-url"></code></div>
+</div>
+
+<div class="layout">
+  <div class="panel chat">
+    <div class="panel-title">Chat</div>
+    <div id="messages"></div>
+    <div class="chat-input">
+      <input id="name" maxlength="40" placeholder="Your name">
+      <input id="msg" maxlength="2000" placeholder="Type a message and press Enter">
+      <button id="send">Send</button>
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="panel">
+      <div class="panel-title">Online now</div>
+      <div id="users"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Drop a file</div>
+      <div id="dropzone">Drag &amp; drop files here, or click to choose</div>
+      <div id="files"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Find DropChat on your Wi-Fi</div>
+      <button id="find">Find friends</button>
+      <div id="found"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Who's on my Wi-Fi</div>
+      <button id="scan">Scan network</button>
+      <div id="wifi"></div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-input" multiple hidden>
+<script src="/client.js"></script>
+</body>
+</html>
