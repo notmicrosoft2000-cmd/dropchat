@@ -371,3 +371,7 @@ footer .dim { margin-top: 8px; font-size: 11px; letter-spacing: .04em; }
 
 main { position: relative; }
 main > *, header { position: relative; z-index: 1; }
+
+/* neptune productions imprint → hub link */
+.nep-link{color:inherit;text-decoration:none;cursor:pointer}
+.nep-link:hover{text-decoration:underline}
